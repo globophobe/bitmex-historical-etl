@@ -57,6 +57,7 @@ def firestore_data(data, strip_date=True):
         "tickRule",
         "ticks",
         "buyTicks",
+        "sellTicks",
         "exponent",
         "index",
     ):

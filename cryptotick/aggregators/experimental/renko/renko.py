@@ -1,10 +1,7 @@
-from google.cloud import bigquery
-
 from ...bqloader import (
     MULTIPLE_SYMBOL_RENKO_SCHEMA,
     SINGLE_SYMBOL_RENKO_SCHEMA,
     BigQueryLoader,
-    get_table_id,
     stringify_datetime_types,
 )
 from ...fscache import firestore_data
@@ -69,29 +66,6 @@ class Renko(BaseAggregator):
             f"{self.log_prefix}: "
             f"{self.date_from.isoformat()} to {self.date_to.isoformat()} OK"
         )
-
-    def get_data_frame(self, date, index=None):
-        table_id = get_table_id(self.table_name)
-        # Query by partition.
-        job_config = bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ScalarQueryParameter("date", "DATE", date),
-                bigquery.ScalarQueryParameter("index", "INTEGER", index),
-            ]
-        )
-        fields = (
-            "timestamp, nanoseconds, price, slippage, "
-            "volume, notional, tickRule, exponent"
-        )
-        clause = "AND index >= @index" if index else ""
-        sql = f"""
-            SELECT {fields}
-            FROM {table_id}
-            WHERE date = @date
-            {clause}
-            ORDER BY timestamp, nanoseconds, index;
-        """
-        return BigQueryLoader(self.table_name, self.date).read_table(sql, job_config)
 
     def process_data_frame(self, data_frame):
         data_frame, cache = self.get_cache(data_frame)

@@ -1,0 +1,6 @@
+VOLUME = "volume"
+BUY_VOLUME = "buyVolume"
+NOTIONAL = "notional"
+BUY_NOTIONAL = "buyNotional"
+TICKS = "ticks"
+BUY_TICKS = "buyTicks"

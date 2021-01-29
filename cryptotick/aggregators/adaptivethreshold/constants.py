@@ -1,0 +1,2 @@
+EMA = "ema"
+SMA = "sma"

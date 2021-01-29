@@ -1,4 +1,6 @@
-from ..bqloader import get_schema_columns
+from google.cloud import bigquery
+
+from ..bqloader import BigQueryLoader, get_schema_columns, get_table_id
 from ..cryptotick import CryptoExchangeETL
 from ..fscache import FirestoreCache
 from ..utils import get_delta
@@ -7,16 +9,14 @@ from ..utils import get_delta
 class BaseAggregator(CryptoExchangeETL):
     def __init__(
         self,
-        table_name,
-        basename=None,
+        source_table,
         date_from=None,
         date_to=None,
         require_cache=False,
         has_multiple_symbols=False,
         verbose=False,
     ):
-        self.table_name = table_name
-        self.basename = basename
+        self.source_table = source_table
         self.require_cache = require_cache
         self.has_multiple_symbols = has_multiple_symbols
         self.verbose = verbose
@@ -25,18 +25,11 @@ class BaseAggregator(CryptoExchangeETL):
         self.initialize_dates(min_date, date_from, date_to)
 
     def get_source(self, sep="_"):
-        return self.table_name.replace("_", sep)
-
-    def get_basename(self, sep="_"):
-        if self.basename:
-            name = self.basename.replace("_", sep)
-        else:
-            name = self.get_source(sep=sep)
-        return name
+        return self.source_table.replace("_", sep)
 
     def get_destination(self, sep="_"):
-        basename = self.get_basename(sep=sep)
-        return f"{basename}{sep}aggregated"
+        destination = self.get_source(sep=sep)
+        return f"{destination}{sep}aggregated"
 
     @property
     def log_prefix(self):
@@ -95,6 +88,26 @@ class BaseAggregator(CryptoExchangeETL):
             # First row of dataframe may be discarded
             data_frame, data = self.get_initial_cache(data_frame)
         return data_frame, data
+
+    def get_data_frame(self, date, index=None):
+        table_id = get_table_id(self.table_name)
+        # Query by partition.
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("date", "DATE", date),
+            ]
+        )
+        fields = (
+            "timestamp, nanoseconds, price, slippage, "
+            "volume, notional, tickRule, exponent"
+        )
+        sql = f"""
+            SELECT {fields}
+            FROM {table_id}
+            WHERE date = @date
+            ORDER BY timestamp, nanoseconds, index;
+        """
+        return BigQueryLoader(self.table_name, self.date).read_table(sql, job_config)
 
     def get_initial_cache(self, data_frame):
         raise NotImplementedError

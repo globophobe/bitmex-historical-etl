@@ -76,8 +76,6 @@ class BaseFTXETL(RESTExchangeETL):
         if data["success"]:
             trades = self.parse_data(data["result"])
             if len(trades):
-                end_time = trades[-1]["timestamp"].replace(tzinfo=datetime.timezone.utc)
-                self.pagination_id = end_time.timestamp()
                 return self.update(trades)
 
     def parse_timestamp(self, data):
@@ -93,8 +91,12 @@ class BaseFTXETL(RESTExchangeETL):
         # Are there duplicates?
         t = [trade for trade in trades if trade["index"] not in self.ids]
         ids = [trade["index"] for trade in trades]
-        if t:
+        if len(t):
             last_timestamp = t[-1]["timestamp"]
+            # Next pagination_id
+            self.pagination_id = last_timestamp.replace(
+                tzinfo=datetime.timezone.utc
+            ).timestamp()
             if self.last_timestamp:
                 # Is next second?
                 if last_timestamp < self.last_timestamp:
@@ -112,10 +114,11 @@ class BaseFTXETL(RESTExchangeETL):
                 self.last_timestamp = last_timestamp.replace(
                     second=0, microsecond=0
                 ) + datetime.timedelta(minutes=-1)
-        # Maybe more than 100 trades with same timestamp.
-        if len(trades) == MAX_RESULTS and not len(t):
+        # Were there more than 100 trades with same timestamp?
+        elif len(trades) == MAX_RESULTS:
             pagination_id = self.pagination_id - 1e-6
             self.pagination_id = round(pagination_id, 6)
+            return False  # Do not stop iteration
         return super().update(t)
 
     def write(self, trades):

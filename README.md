@@ -4,10 +4,12 @@ Historical tick data can be useful for analyzing financial markets, and for mach
 
 When possible, data is downloaded from AWS S3.
 
-Otherwise, it is downloaded with the cryptocurrency exchange REST API.
+Otherwise, it is downloaded from the cryptocurrency exchange REST API.
 
 Supported cryptocurrency exchanges
 ----------------------------------
+Only historical tick data from daily AWS S3 downloads, or paginated REST API, will be collected.
+
 * [BitMEX](https://www.bitmex.com/)
 * [Bybit](https://www.bybit.com/)
 * [Coinbase](https://www.coinbase.com/)
